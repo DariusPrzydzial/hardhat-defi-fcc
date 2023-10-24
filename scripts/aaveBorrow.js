@@ -3,20 +3,23 @@ const { getWeth, AMOUNT } = require("../scripts/getWeth.js")
 const { networkConfig } = require("../helper-hardhat-config")
 
 async function main() {
-    await getWeth()
     const { deployer } = await getNamedAccounts()
     const lendingPool = await getLendingPool(deployer)
+    console.log(`Wallet address        ${deployer.toString()}`)
+    console.log(`Lending pool address  ${lendingPool.address.toString()}`)
+    await getWeth()
     const wethTokenAddress = networkConfig[network.config.chainId].wethToken
     await approveErc20(wethTokenAddress, lendingPool.address, AMOUNT, deployer)
-    console.log("Depositing WETH...")
+    console.log(`Depositing WETH token ${wethTokenAddress} using ${deployer} address`)
     await lendingPool.deposit(wethTokenAddress, AMOUNT, deployer, 0)
     console.log("Desposited!")
     // Getting your borrowing stats
     let { availableBorrowsETH, totalDebtETH } = await getBorrowUserData(lendingPool, deployer)
     const daiPrice = await getDaiPrice()
-    const amountDaiToBorrow = availableBorrowsETH.toString() * 0.95 * (1 / daiPrice.toNumber())
+    const amountDaiToBorrow = availableBorrowsETH.toString() * 0.5 * (1 / daiPrice.toNumber())
     const amountDaiToBorrowWei = ethers.utils.parseEther(amountDaiToBorrow.toString())
     console.log(`You can borrow ${amountDaiToBorrow.toString()} DAI`)
+    console.log(`You can borrow ${amountDaiToBorrowWei.toString()} DAI in Wei`)
     await borrowDai(
         networkConfig[network.config.chainId].daiToken,
         lendingPool,
@@ -52,7 +55,7 @@ async function getDaiPrice() {
         networkConfig[network.config.chainId].daiEthPriceFeed
     )
     const price = (await daiEthPriceFeed.latestRoundData())[1]
-    console.log(`The DAI/ETH price is ${price.toString()}`)
+    console.log(`The ETH/DAI price is ${(1/price*1e18).toString()}`)
     return price
 }
 
@@ -80,9 +83,9 @@ async function getBorrowUserData(lendingPool, account) {
         totalDebtETH,
         availableBorrowsETH
     } = await lendingPool.getUserAccountData(account)
-    console.log(`You have ${totalCollateralETH} worth of ETH deposited.`)
-    console.log(`You have ${totalDebtETH} worth of ETH borrowed.`)
-    console.log(`You can borrow ${availableBorrowsETH} worth of ETH.`)
+    console.log(`You have ${(totalCollateralETH/1e18)} worth of ETH deposited.`)
+    console.log(`You have ${(totalDebtETH/1e18)} worth of ETH borrowed.`)
+    console.log(`You can borrow ${(availableBorrowsETH/1e18)} worth of ETH.`)
     return { availableBorrowsETH, totalDebtETH }
 }
 
